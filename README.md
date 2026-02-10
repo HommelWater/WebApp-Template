@@ -13,7 +13,7 @@ The user then uses the QR code to store the TOTP secret key on their mobile devi
 
 Finally, to log in, the user uses their generated TOTP code to authenticate them selves.
 
-![alt text](https://github.com/HommelWater/Authentification-Template/blob/main/images/auth_example_1.png?raw=true)
+![alt text](https://github.com/HommelWater/Authentification-Template/blob/main/images/auth_example_3.png?raw=true)
 
 The final session token is stored in localStorage under the 'session' key and is valid for 24 hours by default.
 
