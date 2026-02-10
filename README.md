@@ -1,6 +1,8 @@
 # Authentification-Template
 Basic authentication template for websites/webapps in HTML/CSS/JS &amp; Python with FastAPI &amp; SQLite.
 
+The example server can be setup and ran by running the 'setup.sh' bash script.
+
 Users can enter an invite code initially, which consists of the invitee's username and a HOTP code merged with an underscore: 'username_123456'. 
 
 The user then uses the QR code to store the TOTP secret key on their mobile device.
