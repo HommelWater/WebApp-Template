@@ -64,7 +64,6 @@ def get_user(session_key):
     return user
 
 def get_invite_code(invitee_user):
-    print(invitee_user, flush=True)
     db.increment_invite_counter(invitee_user["id"])
     return pyotp.HOTP(invitee_user["invite_secret"]).at(invitee_user["invite_counter"] + 1)
 
