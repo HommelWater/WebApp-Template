@@ -4,7 +4,7 @@ from contextlib import contextmanager
 import pyotp
 
 def get_db_connection():
-    conn = sqlite3.connect('auth.db')
+    conn = sqlite3.connect('data.db')
     conn.row_factory = sqlite3.Row 
     return conn
 
@@ -27,7 +27,7 @@ def setup_db():
         c.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                parent_id INTEGER REFERENCES posts(id),
+                parent_id INTEGER REFERENCES users(id),
                 username TEXT UNIQUE NOT NULL,
                 creation_datetime INTEGER,
                 secret TEXT,

@@ -3,7 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import pyotp
 import uuid
-import auth_db as db
+import database as db
 import re
 from pydantic import BaseModel
 
