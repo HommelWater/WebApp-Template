@@ -6,8 +6,6 @@ function load(){
     setEnterPressEvent();
 }
 
-
-
 async function login(){
     const code = document.getElementById('login-code').value;
 	let username = document.getElementById('login-username').value;
@@ -19,7 +17,7 @@ async function login(){
         targetHost = parts[1];
     }
 
-    const json = await apiRequest(`//${targetHost}/auth`, "POST", JSON.stringify({
+    const json = await apiRequest(`//${targetHost}/auth/`, "POST", JSON.stringify({
         code: code,
         username: username
     }));

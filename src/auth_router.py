@@ -1,7 +1,4 @@
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi import APIRouter
 import pyotp
 import uuid
 import database as db
@@ -10,6 +7,11 @@ from pydantic import BaseModel
 import requests
 from datetime import datetime
 
+CONTYPE = "https://"  # Switch to "http://" for local testing.
+HOSTNAME = "127.0.0.1:8000"  # Hostname of this instance.
+PEERS = ["127.0.0.1:8001", "localhost:8001","0.0.0.0:8001"]  # Examples for testing, switch these out with domain names in production.
+
+
 class AuthRequest(BaseModel):
     code: str
     username: str
@@ -17,25 +19,13 @@ class AuthRequest(BaseModel):
 class ClientRequest(BaseModel):
     session: str
 
-app = FastAPI()
+router = APIRouter()
 username_pattern = r'^[a-zA-Z0-9]+$'
-
-CONTYPE = "https://"  # Switch to "http://" for local testing.
-HOSTNAME = "127.0.0.1:8000"
-peers = ["127.0.0.1:8001", "localhost:8001","0.0.0.0:8001"]  # Examples for testing, switch these out with domain names in production.
-peer_cache = {p:{} for p in peers}  # This cache holds peer sessions that get validated, they get removed after they expire or when the server restarts.
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[f"{CONTYPE}{p}" for p in peers],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"]
-)
+peer_cache = {p:{} for p in PEERS}  # This cache holds peer sessions that get validated, they get removed after they expire or when the server restarts.
 
 db.setup_db()
 
-@app.post("/auth")
+@router.post("/")
 async def auth(data: AuthRequest):
     # Filter out usernames that do not fit the requirements.
     if not re.match(username_pattern, data.username):
@@ -93,14 +83,14 @@ def get_user_and_session(session_key):
             return (None, None)
         user = db.get_user(session["user_id"])
         return (user, session)
-    if host in peers:
+    if host in PEERS:
         (user, session) = peer_cache[host].get(session_token, (None, None))
         if user: 
             if session["expires_at_datetime"] <= int(datetime.now().timestamp()):
                 del peer_cache[host][session_token]
             else:
                 return (user, session)
-        res = requests.post(f"{CONTYPE}{host}/verify_session", json={"session":session_key})
+        res = requests.post(f"{CONTYPE}{host}/auth/verify_session", json={"session":session_key})
         jres = res.json()
         if not jres or jres.get("type", "") != "user_session":
             return (None, None)
@@ -115,7 +105,7 @@ def get_user_and_session(session_key):
 # Only username in this case is passed, along with any aditional fields your application might add. 
 # It is necessary to remove any server-client private information here that peer servers shouldn't see!
 # Adding fields for permissions etc. in the database will pass these fields along to any peer servers.
-@app.post("/verify_session")
+@router.post("/verify_session")
 async def auth(data: ClientRequest):
     user, session = get_user_and_session(data.session)
     if not user:
@@ -136,24 +126,3 @@ def get_invite_code(invitee_user):
         code = pyotp.HOTP(invitee_user["invite_secret"]).at(invitee_user["invite_counter"] + 1)
         return f"{invitee_user["username"]}_{code}"
     return None
-
-# Example request for getting user information.
-@app.post("/server_data_example")
-async def server_data_example(data: ClientRequest):
-    user, session = get_user_and_session(data.session)
-    if not user:
-        return {"type":"failure", "data":{"notification":"Error getting user.", "href":"/auth"}}
-    invite_code = get_invite_code(user)
-    if not invite_code:
-        invite_code = {"type":"failure", "data":{"notification":"Error getting invite code."}}
-    return {"user":user, "new_invite_code": invite_code}
-
-app.mount("/interface/", StaticFiles(directory="./interface/"), name="static")
-
-@app.get("/auth")
-async def login_redirect():
-    return FileResponse("interface/auth/index.html")
-
-@app.get("/")
-async def login_redirect():
-    return FileResponse("interface/main/index.html")
