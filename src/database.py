@@ -52,7 +52,7 @@ def get_session(key):
         if (session and session["expires_at_datetime"] <= int(datetime.now().timestamp())):
             c.execute('DELETE FROM sessions WHERE key = ?', (key,))
             session = None
-    return session
+    return dict(session) if session else None
 
 def add_session(key, user_id, expires_in=86_400):
     with db_cursor() as c:
@@ -81,7 +81,7 @@ def get_user(identifier):
             c.execute('SELECT * FROM users WHERE username = ?', (identifier,))
 
         user = c.fetchone()
-        return user
+        return dict(user) if user else None
 
 def increment_invite_counter(identifier):
     with db_cursor() as c:

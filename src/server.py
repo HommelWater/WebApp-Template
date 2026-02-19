@@ -1,4 +1,5 @@
-from fastapi import FastAPI, Form, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import pyotp
@@ -6,6 +7,8 @@ import uuid
 import database as db
 import re
 from pydantic import BaseModel
+import requests
+from datetime import datetime
 
 class AuthRequest(BaseModel):
     code: str
@@ -16,26 +19,47 @@ class ClientRequest(BaseModel):
 
 app = FastAPI()
 username_pattern = r'^[a-zA-Z0-9]+$'
+
+CONTYPE = "https://"  # Switch to "http://" for local testing.
+HOSTNAME = "127.0.0.1:8000"
+peers = ["127.0.0.1:8001", "localhost:8001","0.0.0.0:8001"]  # Examples for testing, switch these out with domain names in production.
+peer_cache = {p:{} for p in peers}  # This cache holds peer sessions that get validated, they get removed after they expire or when the server restarts.
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[f"{CONTYPE}{p}" for p in peers],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
+
 db.setup_db()
 
 @app.post("/auth")
 async def auth(data: AuthRequest):
+    # Filter out usernames that do not fit the requirements.
     if not re.match(username_pattern, data.username):
         return {"type":"failure", "data":{"notification":"Invalid username."}}
+    
+    # Login codes are always 6 characters, use this to determine if the user is logging in or signing up.
+    # Client JS code determines where the user is logging in or signing up.
+    # We can assume the login attempt is directed at this server. (security risk?)
     islogin = len(data.code) == 6
     if islogin:
         user = db.get_user(data.username)
         if user is None or not pyotp.TOTP(user["secret"]).verify(data.code):
             return {"type":"failure", "data":{"notification":"Could not create new session."}}
-        session_key = str(uuid.uuid4())
-        idx = db.add_session(session_key, user["id"])
+        session_token = str(uuid.uuid4())
+        idx = db.add_session(session_token, user["id"])
         if idx is None:
             return {"type":"failure", "data":{"notification":"Could not create new session."}}
-        return {"type":"login", "data":{"session_key":session_key}}
+        return {"type":"login", "data":{"session_key":f"{session_token}@{HOSTNAME}"}}
     else:
         t = data.code.split('_', 1)
         invitee_username = t[0]
         data.code = t[1] if len(t) > 1 else ''
+
+        # Special case for the admin, every server has an admin account.
         if data.username == "admin":
             user = db.get_user("admin")
             if user:
@@ -56,25 +80,71 @@ async def auth(data: AuthRequest):
             return {"type":"signup", "data":{"secret":secret}}
         return {"type":"failure", "data":{"notification":"Invalid or expired invite code."}}
 
-def get_user(session_key):
-    session = db.get_session(session_key)
-    if not session:
-        return 
-    user = db.get_user(session["user_id"])
-    return user
+# Get user locally or from their foreign (friendly) peer server.
+def get_user_and_session(session_key):
+    t = session_key.split("@", 1)
+    if len(t) != 2:
+        return (None, None)
+    session_token = t[0]
+    host = t[1]
+    if host == HOSTNAME:
+        session = db.get_session(session_token)
+        if not session:
+            return (None, None)
+        user = db.get_user(session["user_id"])
+        return (user, session)
+    if host in peers:
+        (user, session) = peer_cache[host].get(session_token, (None, None))
+        if user: 
+            if session["expires_at_datetime"] <= int(datetime.now().timestamp()):
+                del peer_cache[host][session_token]
+            else:
+                return (user, session)
+        res = requests.post(f"{CONTYPE}{host}/verify_session", json={"session":session_key})
+        jres = res.json()
+        if not jres or jres.get("type", "") != "user_session":
+            return (None, None)
+        user = jres["data"]["user"]
+        session = jres["data"]["session"]
+        peer_cache[host][session_token] = (user,session)
+        return (user, session)
+    print(f"Attempt to join server from non-peer host: {host}", flush=True)
+    return (None, None)
 
+# API endpoint for other friendly peer servers to authenticate user' session tokens and get the user information.
+# Only username in this case is passed, along with any aditional fields your application might add. 
+# It is necessary to remove any server-client private information here that peer servers shouldn't see!
+# Adding fields for permissions etc. in the database will pass these fields along to any peer servers.
+@app.post("/verify_session")
+async def auth(data: ClientRequest):
+    user, session = get_user_and_session(data.session)
+    if not user:
+        return {"type":"failure", "data":{"notification":"Error getting user and session.", "href":"/auth"}}
+    del user["secret"]
+    del user["invite_secret"]
+    del user["invite_counter"]
+    del user["id"]
+    del user["parent_id"]
+    return {"type":"user_session", "data":{"user":user, "session":session}}
+
+# Get an invite code from a user, if no user id field is present, return None (likely in case of foreign users)!
+# Only one code is valid at a time.
+# The invite code gets refreshed and the old one invalidated on use and when new codes get generated using this function.
 def get_invite_code(invitee_user):
-    db.increment_invite_counter(invitee_user["id"])
-    return pyotp.HOTP(invitee_user["invite_secret"]).at(invitee_user["invite_counter"] + 1)
+    if invitee_user.get("id", ""):
+        db.increment_invite_counter(invitee_user["id"])
+        return pyotp.HOTP(invitee_user["invite_secret"]).at(invitee_user["invite_counter"] + 1)
+    return None
 
+# Example request for getting user information.
 @app.post("/server_data_example")
 async def server_data_example(data: ClientRequest):
-    user = get_user(data.session)
+    user, session = get_user_and_session(data.session)
     if not user:
-        return {"type":"failure", "data":{"notification":"Error getting user."}}
+        return {"type":"failure", "data":{"notification":"Error getting user.", "href":"/auth"}}
     invite_code = get_invite_code(user)
     if not invite_code:
-        return {"type":"failure", "data":{"notification":"Error getting invite code."}}
+        invite_code = {"type":"failure", "data":{"notification":"Error getting invite code."}}
     return {"user":user, "new_invite_code": invite_code}
 
 app.mount("/interface/", StaticFiles(directory="./interface/"), name="static")
