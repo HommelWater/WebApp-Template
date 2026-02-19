@@ -133,7 +133,8 @@ async def auth(data: ClientRequest):
 def get_invite_code(invitee_user):
     if invitee_user.get("id", ""):
         db.increment_invite_counter(invitee_user["id"])
-        return pyotp.HOTP(invitee_user["invite_secret"]).at(invitee_user["invite_counter"] + 1)
+        code = pyotp.HOTP(invitee_user["invite_secret"]).at(invitee_user["invite_counter"] + 1)
+        return f"{invitee_user["username"]}_{code}"
     return None
 
 # Example request for getting user information.
