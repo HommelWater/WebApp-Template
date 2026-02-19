@@ -3,8 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from auth_router import router as auth_router
-from auth_router import ClientRequest, get_invite_code, get_user_and_session, CONTYPE, PEERS
+from routers.auth_router import router as auth_router
+from routers.auth_router import CONTYPE, PEERS, ClientRequest, get_invite_code, get_user_and_session
 
 app = FastAPI()
 
