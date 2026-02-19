@@ -1,4 +1,4 @@
-# 🔐 Authentication Template
+# 🔐 WebApp Template
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688.svg)](https://fastapi.tiangolo.com)
@@ -6,11 +6,10 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 A template for websites and web applications built with **FastAPI**, **SQLite**, and vanilla **HTML/CSS/JS**.
-
 ---
 
 ## ✨ Features
-
+Authentication:
 - 🔑 **Multi-server Authentication** — Log in via peer servers with `username@hostname.example` syntax
 - 🔢 **HOTP Invite Codes** — Invite new users with one-time, one-at-a-time invite codes
 - 📱 **TOTP 2FA Support** — QR code-based two-factor authentication
