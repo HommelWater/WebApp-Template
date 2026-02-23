@@ -11,5 +11,17 @@
 <body>
     <p id="session_key"></p>
     <p id="server_data" style="text-align: left;"></p>
-</body>
+
+    <div class="section">
+      <h3>Upload File</h3>
+      <input type="file" id="fileInput">
+      <label><input type="checkbox" id="isPublic"> Public</label><br><br>
+      <button onclick="handleUpload()">Upload</button>
+    </div>
+    <div class="section">
+      <h3>My Files</h3>
+      <button onclick="loadFiles()">Refresh List</button>
+      <div id="fileList"></div>
+    </div>
+  </body>
 </html>

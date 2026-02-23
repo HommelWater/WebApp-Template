@@ -96,10 +96,19 @@ def get_user_and_session(session_key):
             return (None, None)
         user = jres["data"]["user"]
         session = jres["data"]["session"]
+        user["host"] = host
         peer_cache[host][session_token] = (user,session)
         return (user, session)
     print(f"Attempt to join server from non-peer host: {host}", flush=True)
     return (None, None)
+
+# Returns an error message based on user permissions, expand this however you like.
+def user_is_invalid(user, allow_foreign=True):
+    if not user:
+        return {"type":"failure", "data":{"notification":"Could not find user."}}
+    if not allow_foreign and user.get("host", HOSTNAME) != HOSTNAME:
+        return {"type":"failure", "data":{"notification":"Invalid action for foreign user."}}
+    return False
 
 # API endpoint for other friendly peer servers to authenticate user' session tokens and get the user information.
 # Only username in this case is passed, along with any aditional fields your application might add. 

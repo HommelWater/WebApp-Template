@@ -45,6 +45,42 @@ def setup_db():
             )
         ''')
 
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS files (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                hash TEXT UNIQUE NOT NULL,
+                filename TEXT NOT NULL,
+                creation_datetime INTEGER,
+                size INTEGER,
+                is_public INTEGER
+            )
+        ''')
+
+def add_file(hash, filename, size, is_public):
+    with db_cursor() as c:
+        creation_datetime = int(datetime.now().timestamp())
+        c.execute('''
+            INSERT INTO files (hash, filename, creation_datetime, size, is_public)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (hash, filename, creation_datetime, size, is_public))
+        idx = c.lastrowid
+    return idx
+
+def get_file(id):
+    with db_cursor() as c:
+        c.execute('SELECT * FROM files WHERE id = ?', (id,))
+        file = c.fetchone()
+    return dict(file)
+
+def get_files(public_only=True):
+    with db_cursor() as c:
+        if public_only:
+            c.execute('SELECT * FROM files WHERE is_public = ?', (1,))
+        else:
+            c.execute('SELECT * FROM files')
+        files = c.fetchall()
+    return [dict(f) for f in files]
+
 def get_session(key):
     with db_cursor() as c:
         c.execute('SELECT * FROM sessions WHERE key = ?', (key,))

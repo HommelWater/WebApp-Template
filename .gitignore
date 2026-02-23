@@ -1,5 +1,7 @@
 # Database
 src/data.db
+src/files
+src/interface/files
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

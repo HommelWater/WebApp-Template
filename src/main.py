@@ -5,6 +5,7 @@ from fastapi.responses import FileResponse
 
 from routers.auth_router import router as auth_router
 from routers.auth_router import CONTYPE, PEERS, ClientRequest, get_invite_code, get_user_and_session
+from routers.file_router import router as file_router
 
 app = FastAPI()
 
@@ -17,6 +18,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router, prefix="/auth")
+app.include_router(file_router, prefix="/files")
 
 # Example request for getting user information.
 @app.post("/server_data_example")
