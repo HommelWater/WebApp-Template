@@ -6,6 +6,7 @@ from fastapi.responses import FileResponse
 from routers.auth_router import router as auth_router
 from routers.auth_router import CONTYPE, PEERS, ClientRequest, get_invite_code, get_user_and_session
 from routers.file_router import router as file_router
+from routers.user_router import router as user_router
 
 app = FastAPI()
 
@@ -19,6 +20,7 @@ app.add_middleware(
 
 app.include_router(auth_router, prefix="/auth")
 app.include_router(file_router, prefix="/files")
+app.include_router(user_router, prefix="/users")
 
 # Example request for getting user information.
 @app.post("/server_data_example")
@@ -37,4 +39,6 @@ app.mount("/interface/", StaticFiles(directory="./interface/"), name="interface"
 async def spa(full_path: str):
     if full_path == "auth":
         return FileResponse("interface/auth/index.html")
+    if full_path == "users":
+        return FileResponse("interface/users/index.html")
     return FileResponse("interface/main/index.html")

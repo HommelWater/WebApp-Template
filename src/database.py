@@ -55,6 +55,23 @@ def setup_db():
                 is_public INTEGER
             )
         ''')
+    #add_test_users()
+
+def add_test_users():
+    with db_cursor() as c:
+        c.executemany('''
+            INSERT INTO users (id, parent_id, username, creation_datetime, secret, invite_secret, invite_counter)
+            VALUES (?, ?, ?, 0, '', '', 0)
+        ''', [
+            (2, None, 'a'),
+            (3, 1, 'b'),
+            (4, 1, 'c'),
+            (5, 2, 'd'),
+            (6, 2, 'e'),
+            (7, 3, 'f'),
+            (8, None, 'g'),
+            (9, 7, 'h'),
+        ])
 
 def add_file(hash, filename, size, is_public):
     with db_cursor() as c:
@@ -118,6 +135,13 @@ def get_user(identifier):
 
         user = c.fetchone()
         return dict(user) if user else None
+
+def get_users():
+    with db_cursor() as c:
+        c.execute('SELECT username, id, parent_id, creation_datetime FROM users')
+
+        users = c.fetchall()
+        return [dict(user) for user in users]
 
 def increment_invite_counter(identifier):
     with db_cursor() as c:

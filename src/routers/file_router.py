@@ -66,7 +66,7 @@ async def download_stream(data:ClientRequest, id: int):
         media_type="application/octet-stream"
     )
 
-# Link endpoint for public files that do not require authentication.
+# URL endpoint for public files that do not require authentication.
 @router.get("/download/{id}")
 async def download_link(id: int):
     file_metadata = db.get_file(id)
