@@ -15,9 +15,16 @@ async function apiRequest(url, method = 'GET', data = null, json=true) {
         throw new Error(`HTTP ${response.status}: ${errorText}`);
     }
     if (json){
-        return response.json();
+        const jsonResponse = await response.json();
+        if (jsonResponse.type === "failure"){
+            showToast(jsonResponse.data.notification, "failure");
+            if(jsonResponse.data.href){
+                location.href = jsonResponse.data.href;
+            }
+        }
+        return jsonResponse;
     } else {
-        return response
+        return response;
     }
     
 }
@@ -36,7 +43,7 @@ function showToast(message, type = 'success', duration = 3000) {
     // Colors based on type
     const colors = {
         success: '#22c55e',
-        error: '#ef4444',
+        failure: '#ef4444',
         warning: '#f59e0b',
         info: '#3b82f6'
     };
@@ -82,41 +89,58 @@ function showToast(message, type = 'success', duration = 3000) {
 // const file_data = await uploadFile(file, (pct)=>showToast(`Upload progress: ${pct}%`, "info", 1000)));
 async function uploadFile(file, is_public, onProgress) {
     const session = localStorage.getItem("session");
-    const xhr = new XMLHttpRequest();
-  
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('session', session);
+    formData.append('is_public', is_public);
+
     return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+
         xhr.upload.addEventListener('progress', (e) => {
             if (e.lengthComputable) {
                 onProgress(Math.round((e.loaded / e.total) * 100));
             }
         });
-    
+
         xhr.addEventListener('load', () => {
-            if (xhr.status === 200) resolve(JSON.parse(xhr.response));
-            else reject(new Error(xhr.responseText));
+            if (xhr.status !== 200) {
+                showToast(`Upload failed: HTTP ${xhr.status}`, "failure");
+                reject(new Error(`HTTP ${xhr.status}: ${xhr.responseText}`));
+                return;
+            }
+
+            try {
+                const jsonResponse = JSON.parse(xhr.response);
+                
+                if (jsonResponse.type === "failure") {
+                    showToast(jsonResponse.data?.notification || "Upload failed", "failure");
+                    if (jsonResponse.data?.href) {
+                        location.href = jsonResponse.data.href;
+                    }
+                }
+                
+                resolve(jsonResponse);
+            } catch (e) {
+                showToast("Invalid server response", "failure");
+                reject(new Error('Invalid JSON response'));
+            }
         });
-    
-        xhr.addEventListener('error', () => reject(new Error('Upload failed')));
+
+        xhr.addEventListener('error', () => {
+            showToast("Upload failed: Network error", "failure");
+            reject(new Error('Upload failed'));
+        });
+        
+        xhr.addEventListener('abort', () => {
+            showToast("Upload cancelled", "failure");
+            reject(new Error('Upload aborted'));
+        });
 
         xhr.open('POST', '/files/upload');
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('session', session);
-        formData.append('is_public', is_public);
         xhr.send(formData);
-  });
-}
-
-// Get the metadata for all files accesible to you.
-async function getFilesMetadata(){
-    const session = localStorage.getItem("session");
-    const res = await apiRequest("/files/", "POST", JSON.stringify({session}));
-    if (res.type === 'failure') {
-        listEl.innerHTML = 'Failed to load files';
-        showToast(res.data.notification, "failure");
-        return [];
-    }
-    return res.data.files;
+    });
 }
 
 // Download a file by file id, onProgress is a callback function that gets passed the percentage of progress.

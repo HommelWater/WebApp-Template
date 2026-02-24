@@ -36,10 +36,15 @@ async def upload_stream(session: str = Form(...), is_public:bool = Form(...), fi
             hash = hashlib.sha256(hash + chunk_hash).digest()
             buffer.write(chunk)
 
+    file_metadata = db.get_file_by_hash(hash.hex())
+    if file_metadata:
+        os.remove(file_path)
+        return {"type":"file", "data":{"file":file_metadata}}
+
     os.rename(file_path, UPLOAD_DIR / hash.hex())
     id = db.add_file(hash.hex(), file.filename, file.size, is_public)
     file_metadata = db.get_file(id)
-    return file_metadata
+    return {"type":"file", "data":{"file":file_metadata}}
 
 # Endpoint for downloading private files, requires a valid session token to access private files. Does not work for links since its a post request.
 @router.post("/download/{id}")

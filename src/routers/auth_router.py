@@ -105,7 +105,7 @@ def get_user_and_session(session_key):
 # Returns an error message based on user permissions, expand this however you like.
 def user_is_invalid(user, allow_foreign=True):
     if not user:
-        return {"type":"failure", "data":{"notification":"Could not find user."}}
+        return {"type":"failure", "data":{"notification":"Could not find user for your session token.", "href":"/auth"}}
     if not allow_foreign and user.get("host", HOSTNAME) != HOSTNAME:
         return {"type":"failure", "data":{"notification":"Invalid action for foreign user."}}
     return False

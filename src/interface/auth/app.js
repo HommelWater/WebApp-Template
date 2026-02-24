@@ -30,13 +30,6 @@ async function login(){
     if (type == "login"){
         localStorage.setItem("session", rdata.session_key);
         location.href = "/";
-    } else
-    if (type == "failure"){
-        console.log(rdata.notification);
-        showToast(rdata.notification, "error");
-        if (rdata.href){
-            location.href = rdata.href;
-        }
     }
 }
 

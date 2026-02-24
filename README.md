@@ -94,23 +94,4 @@ The UI automatically routes the request to the appropriate peer server.
 
 ## 🛠️ API Reference
 
-### Get User Invite Code
-
-```python
-# Available in server.py
-def get_invite_code(invitee_user):
-    ...
-```
-
-### Get User from Session
-
-```python
-def get_user_and_session(session_key):
-    ...
-```
-
----
-
-## ⚠️ Error Handling
-
-Error messages are automatically displayed whenever a `"failure"` response type is returned from the API.
+See API.md

@@ -87,7 +87,13 @@ def get_file(id):
     with db_cursor() as c:
         c.execute('SELECT * FROM files WHERE id = ?', (id,))
         file = c.fetchone()
-    return dict(file)
+    return dict(file) if file else None
+
+def get_file_by_hash(hash):
+    with db_cursor() as c:
+        c.execute('SELECT * FROM files WHERE hash = ?', (hash,))
+        file = c.fetchone()
+    return dict(file) if file else None
 
 def get_files(public_only=True):
     with db_cursor() as c:
@@ -96,7 +102,7 @@ def get_files(public_only=True):
         else:
             c.execute('SELECT * FROM files')
         files = c.fetchall()
-    return [dict(f) for f in files]
+    return [dict(f) for f in files] if files else []
 
 def get_session(key):
     with db_cursor() as c:
@@ -141,7 +147,7 @@ def get_users():
         c.execute('SELECT username, id, parent_id, creation_datetime FROM users')
 
         users = c.fetchall()
-        return [dict(user) for user in users]
+        return [dict(user) for user in users] if users else []
 
 def increment_invite_counter(identifier):
     with db_cursor() as c:

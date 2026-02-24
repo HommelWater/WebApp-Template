@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from routers.auth_router import router as auth_router
-from routers.auth_router import CONTYPE, PEERS, ClientRequest, get_invite_code, get_user_and_session
+from routers.auth_router import CONTYPE, PEERS, ClientRequest, get_invite_code, get_user_and_session, user_is_invalid
 from routers.file_router import router as file_router
 from routers.user_router import router as user_router
 
@@ -26,8 +26,8 @@ app.include_router(user_router, prefix="/users")
 @app.post("/server_data_example")
 async def server_data_example(data: ClientRequest):
     user, session = get_user_and_session(data.session)
-    if not user:
-        return {"type":"failure", "data":{"notification":"Error getting user.", "href":"/auth"}}
+    msg = user_is_invalid(user)
+    if msg: return msg
     invite_code = get_invite_code(user)
     if not invite_code:
         invite_code = {"type":"failure", "data":{"notification":"Error getting invite code."}}

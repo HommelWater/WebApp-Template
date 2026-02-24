@@ -97,57 +97,46 @@ async function renderUserTree() {
     const session = localStorage.getItem("session");
     const rootContainer = document.getElementById('treeRoot');
     
-    try {        
-        const res = await apiRequest("/users/", "POST", JSON.stringify({session}));
-        console.log(res);
-        if (res.type === "failure") {
-            showToast(res.data.notification, "failure");
-            return;
+    const res = await apiRequest("/users/", "POST", JSON.stringify({session}));
+    if (!res || res.type === "failure") return;
+    const users = res.data.users;
+    
+    const container = document.createElement('div');
+    const nodes = new Map();
+    const childrenCount = {};
+    
+    // Count children for each user
+    users.forEach(u => {
+        if (u.parent_id) {
+            childrenCount[u.parent_id] = (childrenCount[u.parent_id] || 0) + 1;
         }
-        
-        const users = res.data.users;
-        
-        const container = document.createElement('div');
-        const nodes = new Map();
-        const childrenCount = {};
-        
-        // Count children for each user
-        users.forEach(u => {
-            if (u.parent_id) {
-                childrenCount[u.parent_id] = (childrenCount[u.parent_id] || 0) + 1;
-            }
-        });
-        
-        // Create all user nodes first
-        users.forEach(u => {
-            const isRoot = u.parent_id === null || u.parent_id === undefined;
-            const node = createUserNode(u, childrenCount[u.id] || 0, isRoot);
-            nodes.set(u.id, node);
-        });
-        
-        // Attach to parents or container
-        users.forEach(u => {
-            const node = nodes.get(u.id);
-            if (u.parent_id && nodes.has(u.parent_id)) {
-                const parentChildren = nodes.get(u.parent_id).querySelector('.children');
-                parentChildren.appendChild(node);
-            } else {
-                container.appendChild(node);
-            }
-        });
-        
-        // Update stats
-        const stats = calculateStats(users);
-        document.getElementById('totalUsers').textContent = stats.total;
-        document.getElementById('totalLevels').textContent = stats.maxDepth;
-        document.getElementById('avgChildren').textContent = stats.avgInvites;
-        document.getElementById('statsBar').style.display = 'flex';
-        
-        rootContainer.innerHTML = '';
-        rootContainer.appendChild(container);
-        
-    } catch (error) {
-        showToast("Failed to load user tree", "failure");
-        console.error(error);
-    }
+    });
+    
+    // Create all user nodes first
+    users.forEach(u => {
+        const isRoot = u.parent_id === null || u.parent_id === undefined;
+        const node = createUserNode(u, childrenCount[u.id] || 0, isRoot);
+        nodes.set(u.id, node);
+    });
+    
+    // Attach to parents or container
+    users.forEach(u => {
+        const node = nodes.get(u.id);
+        if (u.parent_id && nodes.has(u.parent_id)) {
+            const parentChildren = nodes.get(u.parent_id).querySelector('.children');
+            parentChildren.appendChild(node);
+        } else {
+            container.appendChild(node);
+        }
+    });
+    
+    // Update stats
+    const stats = calculateStats(users);
+    document.getElementById('totalUsers').textContent = stats.total;
+    document.getElementById('totalLevels').textContent = stats.maxDepth;
+    document.getElementById('avgChildren').textContent = stats.avgInvites;
+    document.getElementById('statsBar').style.display = 'flex';
+    
+    rootContainer.innerHTML = '';
+    rootContainer.appendChild(container);
 }

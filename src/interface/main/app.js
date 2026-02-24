@@ -16,43 +16,30 @@ async function handleUpload() {
     const isPublic = document.getElementById('isPublic').checked;
     
     if (!fileInput.files[0]) {
-        showToast('Please select a file', 'error');
+        showToast('Please select a file', 'failure');
         return;
     }
 
-    try {
-    await uploadFile(fileInput.files[0], isPublic, (pct) => showToast(`Uploading: ${pct}%`, "info"));
-    
+    const res = await uploadFile(fileInput.files[0], isPublic, (pct) => showToast(`Uploading: ${pct}%`, "info"));
+    if (!res || res.type === "failure") return;
     showToast('Upload complete!', 'success');
     fileInput.value = '';
     loadFiles();
-    } catch (err) {
-        showToast('Upload failed: ' + err.message, 'error');
-    }
 }
 
 // Load and display file list
 async function loadFiles() {
     const listEl = document.getElementById('fileList');
-    listEl.innerHTML = 'Loading...';
-    
-    try {
-        const files = await getFilesMetadata();
-        if (files.length === 0) {
-            listEl.innerHTML = '<p>No files found</p>';
-            return;
-        }
-
-        listEl.innerHTML = files.map(f => `
-            <div class="file-item">
-            <span>${f.filename} ${f.is_public ? '(public)' : '(private)'}</span>
-            <button onclick="handleDownload(${f.id}, '${f.filename}')">Download</button>
-            </div>
-        `).join('');
-    } catch (err) {
-        listEl.innerHTML = 'Error loading files';
-        showToast(err.message, 'error');
-    }
+    const session = localStorage.getItem("session");
+    const res = await apiRequest("/files/", "POST", JSON.stringify({session}));
+    if (!res || res.type === "failure") return;
+    const files = res.data.files;
+    listEl.innerHTML = files.map(f => `
+        <div class="file-item">
+        <span>${f.filename} ${f.is_public ? '(public)' : '(private)'}</span>
+        <button onclick="handleDownload(${f.id}, '${f.filename}')">Download</button>
+        </div>
+    `).join('');
 }
 
 // Handle file download
@@ -64,6 +51,6 @@ async function handleDownload(fileId, filename) {
         });
         showToast('Download complete!', 'success');
     } catch (err) {
-        showToast('Download failed: ' + err.message, 'error');
+        showToast('Download failed: ' + err.message, 'failure');
     }
 }
