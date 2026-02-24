@@ -23,7 +23,7 @@ All server responses follow a unified JSON structure:
 
 ```json
 {
-  "type": "<success|failure>",
+  "type": "<RESPONSE_TYPE>",
   "data": { ... }
 }
 ```
