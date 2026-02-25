@@ -54,3 +54,15 @@ async function handleDownload(fileId, filename) {
         showToast('Download failed: ' + err.message, 'failure');
     }
 }
+
+// Example persistent connection usage, sending a message.
+async function sendMessage(e){
+    const message = document.getElementById("messageInput").value;
+    send("message", {message});
+}
+
+// Example persistent connection usage, receiving data and processing it.
+async function message(username, message){
+    document.getElementById("messages").innerHTML += `<p>${username}: ${message}</p>`;
+}
+persistent(message);  // Required to make the function callable by the server.
