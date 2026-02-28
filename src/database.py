@@ -149,6 +149,36 @@ def get_users():
         users = c.fetchall()
         return [dict(user) for user in users] if users else []
 
+def delete_user(id, delete_children=False):
+    ids = [id] if not delete_children else gather_user_and_children(id)
+    with db_cursor() as c:
+        if not delete_children: c.execute('UPDATE users SET parent_id = NULL WHERE parent_id = ?', (id,))
+        placeholders = ', '.join('?' * len(ids))
+        c.execute(f'DELETE FROM sessions WHERE user_id IN {placeholders}', ids)
+        c.execute(f'DELETE FROM users WHERE id IN {placeholders}', ids)
+        rcount = c.rowcount
+    return rcount
+
+def gather_user_and_children(id):
+    user_ids = []
+    last_children = [id]
+    with db_cursor() as c:
+        while len(last_children) > 0:
+            placeholders = ', '.join('?' * len(last_children))
+            c.execute(f'SELECT id FROM users WHERE parent_id IN {placeholders}', last_children)
+            user_ids.extend(last_children)
+            last_children = dict(c.fetchall()).values()
+    return user_ids
+
+def delete_user_and_children(id):
+    user_ids = gather_user_and_children(id)
+    with db_cursor() as c:
+        placeholders = ', '.join('?' * len(user_ids))
+        c.execute(f'DELETE FROM sessions WHERE user_id IN {placeholders}', user_ids)
+        c.execute(f'DELETE FROM users WHERE id IN {placeholders}', user_ids)
+        rcount = c.rowcount
+    return rcount
+
 def increment_invite_counter(identifier):
     with db_cursor() as c:
         # Determine field and value

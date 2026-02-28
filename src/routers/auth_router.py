@@ -103,11 +103,13 @@ def get_user_and_session(session_key):
     return (None, None)
 
 # Returns an error message based on user permissions, expand this however you like.
-def user_is_invalid(user, allow_foreign=True):
+def user_is_invalid(user, allow_foreign=True, admin_only=False):
     if not user:
         return {"type":"failure", "data":{"notification":"Could not find user for your session token.", "href":"/auth"}}
     if not allow_foreign and user.get("host", HOSTNAME) != HOSTNAME:
         return {"type":"failure", "data":{"notification":"Invalid action for foreign user."}}
+    if admin_only and not user["username"] == "admin":
+        return {"type":"failure", "data":{"notification":"You do not have permission to do this."}}
     return False
 
 # API endpoint for other friendly peer servers to authenticate user' session tokens and get the user information.
