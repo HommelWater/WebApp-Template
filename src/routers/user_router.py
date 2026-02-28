@@ -7,7 +7,7 @@ router = APIRouter()
 
 class DeleteUserRequest(BaseModel):
     session:str
-    user_id:str
+    user_id:int
     recursive:bool
 
 # Adding users is done in src/routers/auth_router.py.

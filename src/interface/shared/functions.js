@@ -25,8 +25,26 @@ async function apiRequest(url, method = 'GET', data = null, json=true) {
         return jsonResponse;
     } else {
         return response;
-    }
-    
+    }   
+}
+
+// Show a popup to the user.
+z_index_start = 10000
+function popup(message, buttons = []){
+    const popup = document.createElement('div');
+    popup.className = "popup";
+    popup.style.zIndex = z_index_start++;
+    popup.innerHTML = `<div>${message}</div><div class="popup-button-list"></div>`;
+    const button_elements = buttons.map(button =>{
+        const button_element = document.createElement('div');
+        button_element.className = "popup-button";
+        button_element.innerText = button.text;
+        button_element.addEventListener("click", button.function);
+        button_element.addEventListener("click", ()=>popup.remove());
+        return button_element;
+    });
+    popup.querySelector(".popup-button-list").append(...button_elements);
+    document.documentElement.appendChild(popup);
 }
 
 // Displays a toast message to the user.

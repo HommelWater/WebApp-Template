@@ -60,17 +60,17 @@ def setup_db():
 def add_test_users():
     with db_cursor() as c:
         c.executemany('''
-            INSERT INTO users (id, parent_id, username, creation_datetime, secret, invite_secret, invite_counter)
-            VALUES (?, ?, ?, 0, '', '', 0)
+            INSERT INTO users (parent_id, username, creation_datetime, secret, invite_secret, invite_counter)
+            VALUES (?, ?, 0, '', '', 0)
         ''', [
-            (2, None, 'a'),
-            (3, 1, 'b'),
-            (4, 1, 'c'),
-            (5, 2, 'd'),
-            (6, 2, 'e'),
-            (7, 3, 'f'),
-            (8, None, 'g'),
-            (9, 7, 'h'),
+            (2, 'a'),
+            (2, 'b'),
+            (2, 'c'),
+            (2, 'd'),
+            (2, 'e'),
+            (2, 'f'),
+            (2, 'g'),
+            (2, 'h'),
         ])
 
 def add_file(hash, filename, size, is_public):
@@ -145,29 +145,33 @@ def get_user(identifier):
 def get_users():
     with db_cursor() as c:
         c.execute('SELECT username, id, parent_id, creation_datetime FROM users')
-
         users = c.fetchall()
         return [dict(user) for user in users] if users else []
 
 def delete_user(id, delete_children=False):
     ids = [id] if not delete_children else gather_user_and_children(id)
     with db_cursor() as c:
-        if not delete_children: c.execute('UPDATE users SET parent_id = NULL WHERE parent_id = ?', (id,))
-        placeholders = ', '.join('?' * len(ids))
-        c.execute(f'DELETE FROM sessions WHERE user_id IN {placeholders}', ids)
-        c.execute(f'DELETE FROM users WHERE id IN {placeholders}', ids)
+        if not delete_children: 
+            c.execute('UPDATE users SET parent_id = NULL WHERE parent_id = ?', (id,))
+        
+        query = f'DELETE FROM sessions WHERE user_id IN ({",".join("?"*len(ids))})'
+        c.execute(query, ids) 
+        
+        query = f'DELETE FROM users WHERE id IN ({",".join("?"*len(ids))})'
+        c.execute(query, ids)
         rcount = c.rowcount
     return rcount
 
 def gather_user_and_children(id):
-    user_ids = []
+    user_ids = [id]
     last_children = [id]
     with db_cursor() as c:
         while len(last_children) > 0:
             placeholders = ', '.join('?' * len(last_children))
-            c.execute(f'SELECT id FROM users WHERE parent_id IN {placeholders}', last_children)
+            c.execute(f'SELECT id FROM users WHERE parent_id IN ({placeholders})', tuple(last_children))
+            rows = c.fetchall()
+            last_children = [row[0] for row in rows]
             user_ids.extend(last_children)
-            last_children = dict(c.fetchall()).values()
     return user_ids
 
 def delete_user_and_children(id):
@@ -181,13 +185,10 @@ def delete_user_and_children(id):
 
 def increment_invite_counter(identifier):
     with db_cursor() as c:
-        # Determine field and value
         if isinstance(identifier, int) or (isinstance(identifier, str) and identifier.isdigit()):
             field, value = 'id', int(identifier)
         else:
             field, value = 'username', identifier
-        
-        # Increment counter directly in SQL (atomic, no race condition)
         c.execute(f'''
             UPDATE users 
             SET invite_counter = COALESCE(invite_counter, 0) + 1 

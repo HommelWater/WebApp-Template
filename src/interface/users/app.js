@@ -17,6 +17,7 @@ function getInitials(username) {
 }
 
 function createUserNode(user, childrenCount, isRoot = false) {
+    console.log(user);
     const node = document.createElement('div');
     node.className = 'user-node';
     
@@ -28,6 +29,7 @@ function createUserNode(user, childrenCount, isRoot = false) {
             <div class="toggle-btn ${hasChildren ? '' : 'leaf'} ${isRoot ? 'expanded' : ''}">
                 ${hasChildren ? '▶' : ''}
             </div>
+            <div class="delete-button" id="delete-btn-${user.id}">🗑️</div>
             <div class="avatar">${getInitials(user.username)}</div>
             <div class="user-info">
                 <div class="username">${user.username}</div>
@@ -39,7 +41,21 @@ function createUserNode(user, childrenCount, isRoot = false) {
         </div>
         <div class="children ${isRoot ? 'expanded' : 'collapsed'}"></div>
     `;
-    
+
+    const session = localStorage.getItem("session"); 
+    const fn_delete_one = async ()=>{
+        await apiRequest("/users/delete", "POST", JSON.stringify({"session":session, "user_id":user.id, "recursive":false}));
+        location.href = "/users";
+    };
+    const fn_delete_all = async ()=>{
+        await apiRequest("/users/delete", "POST", JSON.stringify({"session":session, "user_id":user.id, "recursive":true}));
+        location.href = "/users";
+    };
+    const fn_delete_none = ()=>{console.log("Cancelled deleting user.")};
+
+    node.querySelector('.delete-button').addEventListener("click", async ()=>{
+        popup("Are you sure you want to delete this user?", [{"text":"Yes.", "function":fn_delete_one},{"text":"Yes, including children.", "function":fn_delete_all}, {"text":"No!", "function":fn_delete_none}]);
+    });
     return node;
 }
 
