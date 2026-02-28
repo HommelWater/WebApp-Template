@@ -151,7 +151,7 @@ async function downloadFile(file_id, onProgress) {
     
     xhr.onprogress = (e) => {
         if (onProgress && e.lengthComputable) {
-            onProgress(e.loaded / e.total);
+            onProgress(Math.round((e.loaded / e.total) * 100));
         }
     };
     
@@ -162,15 +162,70 @@ async function downloadFile(file_id, onProgress) {
     
     return new Promise((resolve, reject) => {
         xhr.onload = () => {
+            const contentType = xhr.getResponseHeader('Content-Type');
+            
+            // Check for JSON error response (your API returns JSON on failure)
+            if (contentType && contentType.includes('application/json')) {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    try {
+                        const response = JSON.parse(reader.result);
+                        if (response.type === "failure") {
+                            showToast(response.data?.notification || 'Download failed', "error");
+                            reject(new Error(response.data?.notification));
+                        } else {
+                            resolve(response);
+                        }
+                    } catch {
+                        showToast('Invalid server response', "error");
+                        reject(new Error('Invalid response'));
+                    }
+                };
+                reader.readAsText(xhr.response);
+                return;
+            }
+            
+            // Handle file download (application/octet-stream or other binary types)
+            const disposition = xhr.getResponseHeader('Content-Disposition');
+            let filename = 'file';
+            
+            if (disposition) {
+                // Try RFC 5987 format first: filename*=utf-8''encoded%20name.mp4
+                const utf8Match = disposition.match(/filename\*=utf-8''([^;]+)/i);
+                if (utf8Match) {
+                    try {
+                        filename = decodeURIComponent(utf8Match[1]);
+                    } catch {
+                        filename = utf8Match[1];
+                    }
+                } else {
+                    // Fall back to standard format: filename="name.mp4" or filename=name.mp4
+                    const standardMatch = disposition.match(/filename="?([^"]+)"?/);
+                    if (standardMatch) {
+                        filename = standardMatch[1];
+                    }
+                }
+            }
+            
             const url = URL.createObjectURL(xhr.response);
             const a = document.createElement('a');
             a.href = url;
-            a.download = xhr.getResponseHeader('Content-Disposition')?.match(/filename="?([^"]+)"?/)[1] || 'file';
+            a.download = filename;
+            document.body.appendChild(a);
             a.click();
+            document.body.removeChild(a);
             URL.revokeObjectURL(url);
             resolve();
         };
-        xhr.onerror = reject;
+        
+        xhr.onerror = () => {
+            showToast('Network error occurred', "error");
+            reject(new Error('Network error'));
+        };
+        
+        xhr.ontimeout = () => {
+            showToast('Request timed out', "error");
+            reject(new Error('Timeout'));
+        };
     });
 }
-
